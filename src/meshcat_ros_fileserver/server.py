@@ -19,6 +19,7 @@ from mimetypes import guess_type
 MAX_ATTEMPTS = 1000
 DEFAULT_FILESERVER_PORT = 9000
 KNOWN_TYPES = ['stl', 'obj', 'dae', 'png', 'bmp', 'jpeg', 'jpg', 'mtl', 'xml', 'xacro', 'urdf']
+ORIGIN = "*"
 
 def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS):
     for i in range(max_attempts):
@@ -35,6 +36,9 @@ def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS):
 
 
 class FileHandler(tornado.web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header("Access-Control-Allow-Origin", ORIGIN)
+
     def initialize(self, root):
         self.root = root
         mimetypes.add_type("model/vnd.collada+xml", ".dae")
@@ -69,6 +73,7 @@ class FileServer(object):
             self.path_root = path_root
             print("Enabling file service with root at '" + self.path_root + "'")
             print("Allowed file extensions: ", KNOWN_TYPES)
+            print("Allowing file requests from: '" + ORIGIN + "'")
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
         if port is None:
@@ -87,17 +92,20 @@ class FileServer(object):
         self.ioloop.start()
 
 def main():
+    global ORIGIN
     import argparse
 
     parser = argparse.ArgumentParser(description="Serves the ROS files over HTTP")
     parser.add_argument('--file-root', '-f', type=str, nargs="?", default=None)
     parser.add_argument('--port', '-p', type=str, nargs="?", default=DEFAULT_FILESERVER_PORT)
+    parser.add_argument('--origin', '-o', type=str, nargs="?", default="*")
     results = parser.parse_args()
     if results.file_root is None:
         print('Please provide a file root!')
         parser.print_usage()
         exit(1)
-    server = FileServer(port=results.port, path_root=results.file_root)
+    ORIGIN = results.origin
+    server = FileServer(port = results.port, path_root = results.file_root)
     print("file_url={:s}".format(server.file_url))
 
     try:
